@@ -1,4 +1,31 @@
 <!DOCTYPE html>
 <html>
-  <h1>Hello World!</h1>
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Supabase</title>
+  </head>
+  <body>
+
+    <div id="loginDiv">
+      <h2>Login</h2>
+      <input id="email" placeholder="Email">
+      <input id="password" type="password" placeholder="Password">
+      <button id="loginBtn">Login</button>
+    </div>
+    
+    <div id="appDiv" style="display:none;">
+      <button id="logoutBtn">Logout</button>
+      <input id="search" placeholder="Search...">
+      <button id="addBtn">Add</button>
+
+      <h2>Data</h2>
+      <ul id="dataList"></ul>
+    </div>
+    
+    
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="app.js"></script>
+
+  </body>
 </html>

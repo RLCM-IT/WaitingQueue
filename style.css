@@ -1,1 +1,68 @@
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #0b1220;
+  color: white;
+}
 
+.app {
+  padding: 30px;
+  text-align: center;
+}
+
+/* INPUT SECTION */
+.input-section h1 {
+  margin-bottom: 15px;
+  color: #38bdf8;
+}
+
+input {
+  padding: 12px;
+  width: 300px;
+  border-radius: 8px;
+  border: none;
+  outline: none;
+}
+
+button {
+  padding: 12px 18px;
+  margin-left: 10px;
+  border: none;
+  border-radius: 8px;
+  background: #38bdf8;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+/* GRID */
+.translator-grid {
+  margin-top: 40px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 20px;
+}
+
+/* CARDS */
+.translator-card {
+  background: #1e293b;
+  padding: 20px;
+  border-radius: 14px;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.4);
+  transition: transform 0.2s ease;
+}
+
+.translator-card:hover {
+  transform: scale(1.05);
+}
+
+.flag {
+  font-size: 30px;
+}
+
+h3 {
+  margin: 10px 0 5px;
+}
+
+p {
+  color: #cbd5e1;
+}
