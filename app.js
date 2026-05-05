@@ -97,7 +97,23 @@ list.innerHTML = ''
 data.forEach((item) => {
     const li = document.createElement('li')
 
-    const text = document.createElement('span')
+    li.dataset.id = item.id
+
+    li.innerHTML = `
+        <div class="view-mode">
+            <span>  
+                ${item.name} 
+                ${item.lastname} - 
+                ${item.mail} - 
+                ${formatLanguages(item.languages)}
+            </span>
+        </div>
+        <div class="edit-mode" style="display:none;"></div>
+
+        <div class="actions"></div>
+    `
+
+    /*const text = document.createElement('span')
     text.textContent = `${item.name} 
                         ${item.lastname} - 
                         ${item.mail} - 
@@ -118,14 +134,107 @@ data.forEach((item) => {
 
     
     li.appendChild(text)
-    li.appendChild(editBtn)
-    li.appendChild(delBtn)
+    if (isAdmin) {
+        li.appendChild(editBtn)
+        li.appendChild(delBtn)
+    }*/
 
     list.appendChild(li)
+
+    setupRow(li, item)
 })
 }
 
-async function editRow(id) {
+
+function setupRow(li, item) {
+    const view = li.querySelector(".view-mode")
+    const edit = li.querySelector(".edit-mode")
+    const actions = li.querySelector(".actions")
+
+    if(isAdmin) {
+        const editBtn = document.createElement('button')
+        editBtn.textContent = "Edit"
+        
+        editBtn.addEventListener("click", () => {
+            enterEditMode(li, item)
+        })
+
+        const delBtn = document.createElement('button')
+        delBtn.textContent = "Delete"
+
+        delBtn.addEventListener("click", () => {
+            deleteRow(item.id)
+        })
+    
+        actions.appendChild(editBtn)
+        actions.appendChild(delBtn)
+    }
+}
+
+function enterEditMode(li, item) {
+    const view = li.querySelector(".view-mode")
+    const edit = li.querySelector(".edit-mode")
+    const actions = li.querySelector(".actions")
+
+    view.style.display = "none"
+    edit.style.display = "block"
+    actions.innerHTML = ""
+    
+    edit.innerHTML = `
+        <input id="name-${item.id}" value="${item.name}">
+        <input id="lastname-${item.id}" value="${item.lastname}">
+        <input id="mail-${item.id}" value="${item.mail}">
+
+        <input id="language-${item.id}" value="${item.languages}"
+                value="${item.languages ? item.languages.join(", "): ""}
+                placeholder="Languages (comma seperated)">
+    `
+
+    const saveBtn = document.createElement("button")
+    saveBtn.textContent = "Save"
+
+    saveBtn.addEventListener("click", () => saveEdit(item.id))
+
+    const cancelBtn = document.createElement("button")
+    cancelBtn.textContent = "Cancel"
+
+    cancelBtn.addEventListener("click", () => renderList(allData))
+    
+    actions.appendChild(saveBtn)
+    actions.appendChild(cancelBtn)
+}
+
+
+
+async function saveEdit(id) {
+    const name = document.getElementById(`name-${id}`).value
+    const lastname = document.getElementById(`lastname-${id}`).value
+    const mail = document.getElementById(`mail-${id}`).value
+
+    const languageInput = document.getElementById(`language-${id}`).value
+
+    const languages = languageInput
+        ? languageInput.split(',').map(l =>
+            l.trim().toLowerCase()
+        )
+    :[]
+
+    const { error } = await supabaseClient
+        .from("translatorList")
+        .update({ name, lastname, mail, languages})
+        .eq('id', id)
+
+    if (error) {
+        alert(error.message)
+        return
+    }
+
+    await loadData()
+}
+
+
+
+/*async function editRow(id) {
     const name = prompt("New name?")
     const lastname = prompt("New lastname?")
     const mail = prompt("New mail?")
@@ -150,7 +259,7 @@ async function editRow(id) {
     }
 
     await loadData()
-}
+}*/
 
 
 async function deleteRow(id) {
