@@ -18,9 +18,11 @@
     <div id="toast-container"></div>
     
     <div id="appDiv" style="display:none;">
-      <button id="logoutBtn">Logout</button>
-      <input id="search" placeholder="Search...">
-      <button id="addBtn">Add</button>
+      <div id="topBar">
+        <input id="search" placeholder="Search...">
+        <button id="addBtn">Add Entry</button>
+        <button id="logoutBtn">Logout</button>
+      </div>
 
       <div id="addForm">
         <input id="add-name" placeholder="Name">
@@ -29,8 +31,8 @@
 
         <div id="add-languages" class="lang-container"></div>
 
-        <button onclick="addRow()">Add</button>
-        <button onclick="cancelAddRow()">Cancle</button>
+        <button class="btn-primary" onclick="addRow()">Add</button>
+        <button class="btn-secondary" onclick="cancelAddRow()">Cancel</button>
       </div>
       <div id="listContainer">
         <h2>Data</h2>

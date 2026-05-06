@@ -1,11 +1,47 @@
+body {
+  font-family: Arial, sans-serif;
+  background: #f4f6f8;
+  margin: 0;
+  padding: 20px;
+}
+
+#appDiv {
+  max-width: 900px;
+  margin: auto;
+}
+
+#search {
+  width: 60%;
+  padding: 8px;
+  margin-right: 10px;
+}
+
+#addBtn, #logoutBtn {
+  margin-left: 5px;
+}
+
 li {
   display: grid;
-  grid-template-columns: 2fr 2fr 3fr 3fr auto;
+  grid-template-columns: 1fr auto;
   gap: 10px;
-  padding: 10px;
-  border-bottom: 1px solid #eee;
-  align-items: center;
-  overflow: hidden;
+  padding: 14px;
+  margin-bottom: 10px;
+
+  background: #fff;
+  border: 1px solid #eee;
+  border-radius: 10px;
+
+  align-items: start;
+  overflow: visible;
+  position: relative;
+}
+
+li div {
+  line-height: 1.4;
+}
+
+li b {
+  font-size: 16px;
 }
 
 li input {
@@ -13,19 +49,98 @@ li input {
 }
 
 li button {
-  padding: 5px 10px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
 }
 
-.lang-container {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
+li button:first-child {
+  background: #2196F3;
+  color: white;
 }
 
-.lang-item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
+li button:last-child {
+  background: #f44336;
+  color: white;
+}
+
+#addForm {
+  background: #f9f9f9;
+  padding: 15px;
+  border-radius: 10px;
+  margin: 10px 0;
+  border: 1px solid #ddd;
+}
+
+#addForm input {
+  display: block;
+  width: 100%;
+  margin-bottom: 8px;
+  padding: 8px;
+}
+
+#add-languages,
+.lang-select {
+  position: relative;
+  width: 100%;
+}
+
+.lang-display {
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  background: white;
+  cursor: pointer;
+  min-height: 20px;
+}
+
+.lang-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+
+  width: 250px;
+  max-height: 250px;
+  overflow-y: auto;
+
+  display: none;
+  z-index: 1000;
+
+  box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+}
+
+.lang-dropdown:not(.open) {
+  pointer-events: none;
+}
+
+.lang-dropdown.open {
+  display: block;
+}
+
+.lang-option {
+  padding: 10px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.lang-option:hover {
+  background: #f2f2f2;
+}
+
+.lang-option.selected {
+  background: #2196F3;
+  color: white;
+}
+
+
+#addForm button {
+  margin-right: 8px;
 }
 
 #toast-container {
@@ -75,4 +190,78 @@ li button {
   padding: 20px;
   color: #666;
   font-style: italic;
+}
+
+#loginDiv {
+  max-width: 350px;
+  margin: 100px auto;
+  padding: 25px;
+
+  background: white;
+  border-radius: 12px;
+  border: 1px solid #ddd;
+
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+#loginDiv input {
+  padding: 10px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+}
+
+#loginDiv button {
+  padding: 10px;
+  border-radius: 6px;
+  border: none;
+  background: #2196F3;
+  color: white;
+  cursor: pointer;
+}
+
+button {
+  padding: 8px 14px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  margin-right: 5px;
+}
+
+button:hover {
+  opacity: 0.9;
+}
+
+.btn-primary {
+  background: #2196F3;
+  color: white;
+}
+
+.btn-secondary {
+  background: #e0e0e0;
+}
+
+#topBar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 15px;
+}
+
+#search {
+  flex: 1;
+  padding: 8px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+}
+
+#addBtn {
+  background: #4CAF50;
+  color: white;
+}
+
+#logoutBtn {
+  background: #555;
+  color: white;
 }
