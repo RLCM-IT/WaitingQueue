@@ -1,6 +1,6 @@
-let allData = []
-let editingId = []
-let isAdmin = false
+//==============Variables========================================================
+
+let searchTimeout
 
 const AVAILABLE_LANGUAGES = [
     "deutsch",
@@ -29,7 +29,44 @@ const addBtn = document.getElementById('addBtn')
 const searchInput = document.getElementById('search')
 const list = document.getElementById('dataList')
 
+//====== State Section ==========================================================
 
+const state = {
+    allData: [],
+    search: "",
+    isLoading: false,
+    editingId: null,
+    isAdmin: false
+}
+
+function setState(partial) {
+    Object.assign(state, partial)
+    render()
+}
+
+//===========Init================================================================
+async function init() {
+    const savedSearch = localStorage.getItem("search") || ""
+
+    searchInput.value = savedSearch
+
+    setState({
+        search: savedSearch
+    })
+
+    await updateUI()
+}
+
+const formatLanguages = (arr) =>
+    arr?.map(l =>
+        l.charAt(0).toUpperCase() + l.slice(1).toLowerCase()
+    ).join(', ')
+
+supabaseClient.auth.onAuthStateChange(() => {
+updateUI()
+})
+
+//===========Controller===========================================================
 
 loginBtn.addEventListener('click', async () => {
     const email = emailInput.value
@@ -41,40 +78,84 @@ loginBtn.addEventListener('click', async () => {
     })
 
     if (error) {
-        console.error("Login error:", error)
-        alert(error.message)
+        showToast(error.message, "error")
         return
     }
     await updateUI()
 })
 
-
-
 logoutBtn.addEventListener('click', async () => {
     await supabaseClient.auth.signOut()
     await updateUI()
+})
+
+addBtn.addEventListener('click', async () => {
+    addFormDiv.style.display="block"
+})
+
+searchInput.addEventListener('input', () => {
+    clearTimeout(searchTimeout)
+    
+    searchTimeout = setTimeout(() => {
+        const value = searchInput.value
+
+        localStorage.setItem("search", value)
+
+        setState({
+            search: value
+        })
+    }, 200)
+})
+
+async function updateUI(){
+    const { data: { session } } = await supabaseClient.auth.getSession()
+
+    if(session) {
+        state.isAdmin = await getUserRole(session.user.id)
+
+        loginDiv.style.display = "none"
+        appDiv.style.display = "block"
+        addFormDiv.style.display = "none"
+
+        updateAdminUI()
+        await loadData()
+        renderAddLanguages()
+    } else {
+        loginDiv.style.display = "block"
+        appDiv.style.display = "none"
+        addFormDiv.style.display = "none"
+        list.innerHTML = ""
+        setState({ allData: []})
+    }    
+}
+
+function updateAdminUI() {
+    addBtn.style.display = state.isAdmin ? 'block' : 'none'
+}
+
+//=====supabase/api functions=================================================
+
+async function loadData() {
+    setState({
+        isLoading: true
     })
 
-
-
-    async function loadData() {
     const { data, error } = await supabaseClient
         .from('translatorList')
         .select('*')
 
     if (error) {
         console.error("Data error:", error)
+        showToast(error.message, "error")
+        setState({isLoading: false})
         return
     }
 
-    allData = data
-    renderList(allData)
+    setState({
+        allData: data,
+        isLoading: false
+    })
 }
-
-
-addBtn.addEventListener('click', async () => {
-    addFormDiv.style.display="block"
-})
 
 async function addRow() {
     const name = document.getElementById("add-name").value
@@ -87,17 +168,19 @@ async function addRow() {
         container.querySelectorAll("input[type='checkbox']:checked")
     ).map(cb => cb.value.toLowerCase())
 
-    if( !name || !lastname || !mail){
-        alert("Please fill all fields")
+    if( !name || !lastname || !mail || languages.length === 0){
+        showToast("Please fill all fields", "error")
         return
     }
 
-    const { error } = await supabaseClient
+    const { data, error } = await supabaseClient
         .from("translatorList")
         .insert([{ name, lastname, mail, languages }])
+        .select()
+        .single()
 
     if (error) {
-        alert(error.message)
+        showToast(error.message, "error")
         return
     }
     
@@ -109,84 +192,143 @@ async function addRow() {
 
     addFormDiv.style.display = "none"
     
-    await loadData()
+    setState({
+        allData: [...state.allData, data]
+    })
+
+    showToast("Added successfuly", "success")
 }
 
+async function saveEdit(id) {
+    const name = document.getElementById(`name-${id}`).value
+    const lastname = document.getElementById(`lastname-${id}`).value
+    const mail = document.getElementById(`mail-${id}`).value.toLowerCase()
 
-async function renderList(data) {
+    const languageInput = document.getElementById(`language-${id}`)
+
+    const languages = Array.from(languageInput.querySelectorAll("input[type='checkbox']:checked"))
+        .map(opt => opt.value.toLowerCase())
+
+    if (!name || !lastname || !mail || languages.length === 0) {
+        showToast("All fields are required", "error")
+        return
+    }
+
+    if (!mail.includes("@")) {
+        showToast("Invalid email", "error")
+        return
+    }
+
+    const { data, error } = await supabaseClient
+        .from("translatorList")
+        .update({ name, lastname, mail, languages})
+        .eq('id', id)
+        .select()
+        .single()
+
+    if (error) {
+        
+        showToast("error.message", "error")
+        return
+    }
+
+    setState({
+        allData: state.allData.map(item => 
+            item.id === id ? data : item
+        ),
+        editingId: null
+    })
+
+    showToast("Changes saved", "success")
+}
+
+async function deleteRow(id) {
+    if(!confirm("Delet entry?")) return
+
+    const { error } = await supabaseClient
+        .from("translatorList")
+        .delete()
+        .eq('id', id)
+
+    if (error) {
+        showToast(error.message, "error")
+        return
+    }
+
+    setState({
+        allData: state.allData.filter(item => item.id !== id)
+    })
+
+    showToast("Entry deleted", "success")
+}
+
+async function  getUserRole(userId) {
+    const { data, error } = await supabaseClient
+        .from("user_rolls")
+        .select("role")
+        .eq("id", userId)
+        .single()
+
+    return data?.role === 'admin'
+}
+
+function getFilteredData() {
+    const query = state.search.toLowerCase().trim()
+
+    if (!query) return state.allData
+
+    return state.allData.filter(item => {
+        return (
+            item.name?.toLowerCase().includes(query) ||
+            item.lastname?.toLowerCase().includes(query) ||
+            item.mail?.toLowerCase().includes(query) ||
+            item.languages?.join(', ').toLowerCase().includes(query)
+        )
+    })
+}
+
+//=====DOM/UI functions====================================================
+
+function render() {
+    renderList(
+        getFilteredData(),
+        state.search.trim().length > 0
+    )
+}
+
+function renderList(data = state.allData, isSearch = false) {
     list.innerHTML = ''
+
+    if (state.isLoading) {
+        list.innerHTML = `<p class="state-msg">Loading...</p>`
+        return
+    }
+
+    if (!data || data.length === 0) {
+        const msg = isSearch
+            ? "No entries found for your search" 
+            : "No entries found"
+        
+        const p = document.createElement('p')
+        p.className = 'state-msg'
+        p.textContent = msg
+
+        list.appendChild(p)
+        return
+    }
 
     data.forEach((item) => {
         const li = document.createElement('li')
-
-        if (editingId === item.id) {
+        
+        if (state.editingId === item.id) {
             renderEditRow(li, item)
         } else {
             renderViewRow(li, item)
         }
 
-        /*li.dataset.id = item.id
-
-        li.innerHTML = `
-            <div class="view-mode">
-                <span>  
-                    ${item.name} 
-                    ${item.lastname} - 
-                    ${item.mail} - 
-                    ${formatLanguages(item.languages)}
-                </span>
-            </div>
-            <div class="edit-mode" style="display:none;"></div>
-
-            <div class="actions"></div>
-        `
-
-        const text = document.createElement('span')
-        text.textContent = `${item.name} 
-                            ${item.lastname} - 
-                            ${item.mail} - 
-                            ${formatLanguages(item.languages)} `
-
-        const editBtn = document.createElement('button')
-        editBtn.textContent = "Edit"
-        editBtn.addEventListener("click", () => {
-            editRow(item.id)
-        })
-
-        const delBtn = document.createElement('button')
-        delBtn.textContent = "Delete"
-        delBtn.addEventListener("click", () => {
-            deleteRow(item.id)
-        })
-
-
-        
-        li.appendChild(text)
-        if (isAdmin) {
-            li.appendChild(editBtn)
-            li.appendChild(delBtn)
-        }*/
-
         list.appendChild(li)
-
-        //setupRow(li, item)
     })
 }
-
-
-function renderAddLanguages () {
-    const container = document.getElementById("add-languages")
-
-    if (!container) return
-
-    container.innerHTML = AVAILABLE_LANGUAGES.map(lang => `
-        <label class="lang-item">
-            <input type="checkbox" value="${lang}">
-            ${lang.charAt(0).toUpperCase() + lang.slice(1)}
-        </label>`
-    ).join("")
-}
-
 
 function renderViewRow(li, item) {
     const info = document.createElement("div")
@@ -199,20 +341,20 @@ function renderViewRow(li, item) {
     info.innerHTML = `
         <b>${item.name} ${item.lastname}</b><br>
         ${item.mail}<br>
-        <i>${languages}</li>`
+        <i>${languages}</i>`
 
     li.appendChild(info)
 
-    if (isAdmin) {
+    if (state.isAdmin) {
         const actions = document.createElement("div")
         
         const editBtn = document.createElement('button')
         editBtn.textContent = "Edit"
         
         editBtn.addEventListener("click", () => {
-            editingId = item.id
-            renderList(allData)
-            //enterEditMode(li, item)
+            setState({
+                editingId: item.id
+            })
         })
 
         const delBtn = document.createElement('button')
@@ -229,31 +371,6 @@ function renderViewRow(li, item) {
     }
 }
 
-/*function setupRow(li, item) {
-    const view = li.querySelector(".view-mode")
-    const edit = li.querySelector(".edit-mode")
-    const actions = li.querySelector(".actions")
-
-    if(isAdmin) {
-        const editBtn = document.createElement('button')
-        editBtn.textContent = "Edit"
-        
-        editBtn.addEventListener("click", () => {
-            enterEditMode(li, item)
-        })
-
-        const delBtn = document.createElement('button')
-        delBtn.textContent = "Delete"
-
-        delBtn.addEventListener("click", () => {
-            deleteRow(item.id)
-        })
-    
-        actions.appendChild(editBtn)
-        actions.appendChild(delBtn)
-    }
-}
-*/
 function renderEditRow(li, item) {
     const form = document.createElement("div")
 
@@ -263,7 +380,7 @@ function renderEditRow(li, item) {
         const checked = selectedLangs.includes(lang.toLowerCase()) ? "checked" : ""
         return `<label class="lang-item"><input type="checkbox" value="${lang}" ${checked}>
             ${lang.charAt(0).toUpperCase() + lang.slice(1)}
-        </option></label>`
+        </label>`
     }).join("")
 
     form.innerHTML = `
@@ -286,8 +403,11 @@ function renderEditRow(li, item) {
     cancelBtn.textContent = "Cancel"
 
     cancelBtn.addEventListener("click", () => {
-        editingId = null
-        renderList(allData)
+        setState({
+            editingId: null
+        })
+
+        render()
     })
     
     actions.appendChild(saveBtn)
@@ -301,171 +421,63 @@ function renderEditRow(li, item) {
 
     attachKeyboardHandlers(item)
 }
-/*function enterEditMode(li, item) {
-    const view = li.querySelector(".view-mode")
-    const edit = li.querySelector(".edit-mode")
-    const actions = li.querySelector(".actions")
 
-    view.style.display = "none"
-    edit.style.display = "block"
-    actions.innerHTML = ""
-    
-    edit.innerHTML = `
-        <input id="name-${item.id}" value="${item.name}">
-        <input id="lastname-${item.id}" value="${item.lastname}">
-        <input id="mail-${item.id}" value="${item.mail}">
+function renderAddLanguages () {
+    const container = document.getElementById("add-languages")
 
-        <input id="language-${item.id}" value="${item.languages}"
-                value="${item.languages ? item.languages.join(", "): ""}
-                placeholder="Languages (comma seperated)">
-    `
+    if (!container) return
 
-    const saveBtn = document.createElement("button")
-    saveBtn.textContent = "Save"
-
-    saveBtn.addEventListener("click", () => saveEdit(item.id))
-
-    const cancelBtn = document.createElement("button")
-    cancelBtn.textContent = "Cancel"
-
-    cancelBtn.addEventListener("click", () => renderList(allData))
-    
-    actions.appendChild(saveBtn)
-    actions.appendChild(cancelBtn)
-}*/
-
-
-
-async function saveEdit(id) {
-    const name = document.getElementById(`name-${id}`).value
-    const lastname = document.getElementById(`lastname-${id}`).value
-    const mail = document.getElementById(`mail-${id}`).value.toLowerCase()
-
-    const languageInput = document.getElementById(`language-${id}`)
-
-    const languages = Array.from(languageInput.querySelectorAll("input[type='checkbox']:checked"))
-        .map(opt => opt.value.toLowerCase())
-
-    /*const languages = languageInput
-        ? languageInput.split(',').map(l =>
-            l.trim().toLowerCase()
-        )
-    :[]*/
-
-    if (!name || !lastname || !mail || !languages) {
-        alert("All fields are required")
-        return 
-    }
-
-    if (!mail.includes("@")) {
-        alert("Invalid email")
-        return
-    }
-
-    const { error } = await supabaseClient
-        .from("translatorList")
-        .update({ name, lastname, mail, languages})
-        .eq('id', id)
-
-    if (error) {
-        alert(error.message)
-        return
-    }
-
-    editingId = null
-    await loadData()
+    container.innerHTML = AVAILABLE_LANGUAGES.map(lang => `
+        <label class="lang-item">
+            <input type="checkbox" value="${lang}">
+            ${lang.charAt(0).toUpperCase() + lang.slice(1)}
+        </label>`
+    ).join("")
 }
 
+function showToast(message, type = "success") {
+    const container = document.getElementById("toast-container")
 
-
-/*async function editRow(id) {
-    const name = prompt("New name?")
-    const lastname = prompt("New lastname?")
-    const mail = prompt("New mail?")
-    const languageInput = prompt("Languages (comma separated, e.g. deutsch, englisch")
-
-    if(!name || !lastname || !mail) return
-
-    const languages = languageInput
-        ? languageInput.split(',').map(l =>
-            l.trim().toLowerCase()
-        )
-    :[]
-
-    const { error } = await supabaseClient
-        .from("translatorList")
-        .update({ name, lastname, mail, languages})
-        .eq('id', id)
-
-    if (error) {
-        alert(error.message)
-        return
+    if (container.children.length > 3) {
+        container.firstChild.remove()
     }
 
-    await loadData()
-}*/
+    const toast = document.createElement("div")
+    toast.className = `toast ${type}`
+    toast.textContent = message
 
+    toast.addEventListener('click', () => toast.remove())
 
-async function deleteRow(id) {
-    if(!confirm("Delet entry?")) return
+    container.appendChild(toast)
 
-    const { error } = await supabaseClient
-        .from("translatorList")
-        .delete()
-        .eq('id', id)
+    setTimeout(() => {
+        toast.classList.add("show")
+    }, 10)
 
-    if (error) {
-        alert(error.message)
-        return
-    }
-
-    await loadData()
+    setTimeout(() => {
+        toast.classList.remove("show")
+        
+        setTimeout(() => {
+            toast.remove()
+        }, 300)
+    }, 3000)
 }
 
+async function cancelAddRow() {
+    const container = document.getElementById("add-languages")
 
+    const languages = Array.from(
+        container.querySelectorAll("input[type='checkbox']:checked")
+    ).map(cb => cb.value.toLowerCase())
 
+    document.getElementById("add-name").value = ""
+    document.getElementById("add-lastname").value = ""
+    document.getElementById("add-mail").value = ""
 
-searchInput.addEventListener('input', () => {
-    const query = searchInput.value.toLowerCase()
+    container.querySelectorAll("input").forEach(cb => cb.checked = false)
 
-    const filtered = allData.filter(item => {
-        return (
-        item.name?.toLowerCase().includes(query) ||
-        item.lastname?.toLowerCase().includes(query) ||
-        item.mail?.toLowerCase().includes(query) ||
-        item.languages?.join(', ').toLowerCase().includes(query)
-        )
-    })
-
-    renderList(filtered)
-})
-
-
-
-async function updateUI(){
-    const { data: { session } } = await supabaseClient.auth.getSession()
-
-    isAdmin = true
-
-    if(session) {
-        //isAdmin = session.user.user_metadata?.role === "admin"
-
-        loginDiv.style.display = "none"
-        appDiv.style.display = "block"
-        addFormDiv.style.display = "none"
-
-        updateAdminUI()
-        await loadData()
-        renderAddLanguages()
-    } else {
-        loginDiv.style.display = "block"
-        appDiv.style.display = "none"
-        ddFormDiv.style.display = "none"
-        list.innerHTML = ""
-        allData = []
-    }    
+    addFormDiv.style.display = "none"
 }
-
 
 function attachKeyboardHandlers(item) {
     const inputs = [
@@ -484,30 +496,14 @@ function attachKeyboardHandlers(item) {
             }
 
             if (e.key === "Escape") {
-                editingId = null
-                renderList(allData)
+                setState({
+                    editingId: null
+                })
             }
         })
     })
 }
 
+//=====Initialize Call==========================
 
-
-function updateAdminUI() {
-    addBtn.style.display = isAdmin ? 'block' : 'none'
-}
-
-
-
-const formatLanguages = (arr) =>
-    arr?.map(l =>
-        l.charAt(0).toUpperCase() + l.slice(1).toLowerCase()
-    ).join(', ')
-
-
-
-supabaseClient.auth.onAuthStateChange(() => {
-updateUI()
-})
-
-updateUI()
+document.addEventListener("DOMContentLoaded", init)

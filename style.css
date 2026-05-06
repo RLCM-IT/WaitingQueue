@@ -27,3 +27,52 @@ li button {
   align-items: center;
   gap: 6px;
 }
+
+#toast-container {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  z-index: 999;
+}
+
+.toast {
+  padding: 10px 14px;
+  border-radius: 6px;
+  color: white;
+  font-size: 14px;
+  min-width: 200px;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: all 0.3s ease;
+}
+
+.toast.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.toast.success {
+  background: #4CAF50;
+}
+
+.toast.error {
+  background: #f44336;
+}
+
+.toast.info { 
+  background: #2196F3; 
+
+}
+.toast.warn { 
+  background: #ff9800; 
+}
+
+.state-msg {
+  text-align: center;
+  padding: 20px;
+  color: #666;
+  font-style: italic;
+}
