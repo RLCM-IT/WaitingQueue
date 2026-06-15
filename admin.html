@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+    <body>
+
+        <div id="loginBox">
+            <h2>Admin Login</h2>
+
+            <input id="email" placeholder="email">
+            <input id="password" type="password" placeholder="password">
+
+            <button id="loginBtn">Login</button>
+        </div>
+
+        <div id="adminPanel" style="display:none;">
+            <h1>Admin Queue Panel</h1>
+
+            <button id="callNextBtn">Call Next</button>
+            <button id="logoutBtn">Logout</button>
+
+            <div id="queueList"></div>
+        </div>
+
+        <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+        <script src="admin.js"></script>
+    </body>
+</html>

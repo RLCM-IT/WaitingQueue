@@ -1,15 +1,34 @@
+<!DOCTYPE html>
 <html>
-    <head>
-        <title>Queue</title>
-    </head>
-    <body>
-        <h1>Waiting Queue</h1>
+<head>
+    <title>Queue Registration</title>
 
-        <div id="status">
-            Loading...
-        </div>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
 
-        <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-        <script src="customer.js"></script>
-    </body>
+<h1>Queue Registration</h1>
+
+<div id="status"></div>
+
+<div id="formContainer">
+
+    <input id="firstname"
+           placeholder="First Name">
+
+    <input id="lastname"
+           placeholder="Last Name">
+
+    <input id="email"
+           placeholder="Email">
+
+    <button id="submitBtn">
+        Register
+    </button>
+
+</div>
+
+<script src="customer.js"></script>
+
+</body>
 </html>

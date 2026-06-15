@@ -1,4 +1,4 @@
-//==============Variables========================================================
+/*==============Variables========================================================
 
 let searchTimeout
 
@@ -222,10 +222,10 @@ async function saveEdit(id) {
     const lastname = document.getElementById(`lastname-${id}`).value
     const mail = document.getElementById(`mail-${id}`).value.toLowerCase()
 
-    /*const languageInput = document.getElementById(`language-${id}`)
+    const languageInput = document.getElementById(`language-${id}`)
 
     const languages = Array.from(languageInput.querySelectorAll("input[type='checkbox']:checked"))
-        .map(opt => opt.value.toLowerCase())*/
+        .map(opt => opt.value.toLowerCase())
 
     const languages = selectedLanguagesMap[id] || []
 
@@ -532,7 +532,7 @@ function renderLanguageSelect(container, key, initial = []) {
     // click outside closes
     /*document.addEventListener("click", () => {
         dropdown.classList.remove("open")
-    })*/
+    })/
 
     update()
 }
@@ -604,4 +604,4 @@ function attachKeyboardHandlers(item) {
 
 //=====Initialize Call==========================
 
-document.addEventListener("DOMContentLoaded", init)
+document.addEventListener("DOMContentLoaded", init)*/
