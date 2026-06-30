@@ -14,11 +14,7 @@ const supabaseClient = supabase.createClient(
     }
 );
 
-const loginBox = document.getElementById("loginBox");
-const adminPanel = document.getElementById("adminPanel");
-
-document.getElementById("loginBtn").addEventListener("click", login);
-document.getElementById("logoutBtn").addEventListener("click", logout);
+let isAdminInitialized = false;
 
 async function login() {
 
@@ -59,7 +55,13 @@ async function login() {
     loginBox.style.display = "none";
     adminPanel.style.display = "block";
 
-    loadQueue();
+    if (!isAdminInitialized) {
+
+        await loadQueue();
+        await loadStats();
+        subscribeRealtime();
+        isAdminInitialized = true;
+    }
 }
 
 async function logout() {
@@ -67,51 +69,85 @@ async function logout() {
     location.reload();
 }
 
-document
-    .getElementById("callNextBtn")
-    .addEventListener("click", callNext);
+document.addEventListener("DOMContentLoaded", () => {
 
-async function callNext() {
+    const btn =
+        document.getElementById("callNextBtn");
 
-    const { data, error } = await supabaseClient
-        .from("queue_entries")
-        .select("*")
-        .eq("status", "waiting")
-        .order("checked_in_at", { ascending: true })
-        .limit(1);
+    if (btn) {
+        btn.addEventListener(
+            "click",
+            callNextPerson
+        );
+    }
+}); 
 
-    if (error || !data.length) {
-        console.log("No users");
+function subscribeRealtime() {
+
+    supabaseClient
+        .channel("admin_queue")
+        .on(
+            "postgres_changes",
+            {
+                event: "*",
+                schema: "public",
+                table: "queue_entries"
+            },
+            () => {
+                loadQueue();
+                loadStats();
+            }
+        )
+        .subscribe();
+
+}
+
+const loginBox = document.getElementById("loginBox");
+const adminPanel = document.getElementById("adminPanel");
+
+document.getElementById("loginBtn").addEventListener("click", login);
+document.getElementById("logoutBtn").addEventListener("click", logout);
+
+
+
+async function callNextPerson() {
+
+    const { data, error } = await supabaseClient.rpc(
+        "call_next_person"
+    );
+
+    if (error) {
+        alert(error.message);
         return;
     }
 
-    const next = data[0];
+    if (!data?.success) {
+        alert(data?.message || "No ticket");
+        return;
+    }
 
-    await supabaseClient
-        .from("queue_entries")
-        .update({
-            status: "called",
-            called_at: new Date().toISOString()
-        })
-        .eq("id", next.id);
+    console.log("Now calling:", data.ticket_number);
 
-    console.log("Called:", next.ticket_number);
-
-    loadQueue();
+    await loadQueue();
+    await loadStats();
 }
 
 async function loadQueue() {
 
-    const { data } = await supabaseClient
-        .from("queue_entries")
-        .select("*")
-        .order("checked_in_at", { ascending: true });
+    const { data, error } =
+        await supabaseClient
+            .from("queue_entries")
+            .select("*")
+            .in("status", ["waiting", "called"])
+            .order("checked_in_at");
 
-    const div = document.getElementById("queueList");
+    if (error) {
+        console.error(error);
+        return;
+    }
 
-    div.innerHTML = data.map(q =>
-        `<p>${q.ticket_number} - ${q.status}</p>`
-    ).join("");
+    renderQueue(data);
+
 }
 
 async function clearQueue() {
@@ -128,4 +164,183 @@ async function clearQueue() {
     }
 }
 
+function minutesWaiting(timestamp) {
 
+    const start = new Date(timestamp);
+    const now = new Date();
+
+    return Math.floor(
+        (now - start) / 60000
+    );
+}
+
+function renderQueue(entries) {
+
+    const list = document.getElementById("queueList");
+    list.innerHTML = "";
+
+    const called = entries.filter(e => e.status === "called");
+    const waiting = entries.filter(e => e.status === "waiting");
+
+    // 1. ACTIVE (CALLED)
+    const activeBox = document.createElement("div");
+    activeBox.innerHTML = `<h3>Currently Called</h3>`;
+
+    if (called.length === 0) {
+        activeBox.innerHTML += `<p>No active ticket</p>`;
+    }
+
+    called.forEach(entry => {
+
+        const row = document.createElement("div");
+
+        row.innerHTML = `
+            <b>🎫 ${entry.ticket_number}</b><br>
+            Status: ${entry.status}<br>
+            Waiting: ${minutesWaiting(entry.checked_in_at)} min<br>
+
+            <button onclick="markDone('${entry.id}')">Done</button>
+            <button onclick="markMissed('${entry.id}')">Missed</button>
+            <button onclick="cancelEntry('${entry.id}')">Cancel</button>
+        `;
+
+        activeBox.appendChild(row);
+    });
+
+    list.appendChild(activeBox);
+
+    // 2. WAITING LIST
+    const waitingBox = document.createElement("div");
+    waitingBox.innerHTML = `<h3>Waiting Queue</h3>`;
+
+    waiting.forEach(entry => {
+
+        const row = document.createElement("div");
+
+        row.innerHTML = `
+            <b>${entry.ticket_number}</b>
+            | ${minutesWaiting(entry.checked_in_at)} min
+
+            <button onclick="callSpecific('${entry.id}')">
+                Call
+            </button>
+        `;
+
+        waitingBox.appendChild(row);
+    });
+
+    list.appendChild(waitingBox);
+}
+
+async function markDone(id) {
+
+    const { data: entry } = await supabaseClient
+        .from("queue_entries")
+        .select("status")
+        .eq("id", id)
+        .single();
+
+    let newStatus = "done";
+
+    // wenn nie aufgerufen → missed statt done
+    if (entry.status === "waiting") {
+        newStatus = "missed";
+    }
+
+    const { error } =
+        await supabaseClient.rpc("update_queue_status", {
+            p_id: id,
+            p_new_status: newStatus
+        });
+
+    if (error) {
+        console.error(error);
+        return;
+    }
+
+    await loadQueue();
+    await loadStats();
+}
+
+async function cancelEntry(id) {
+
+    const { error } =
+        await supabaseClient.rpc("update_queue_status", {
+            p_id: id,
+            p_new_status: "cancelled"
+        });
+
+    if (error) {
+        console.error(error);
+        return;
+    }
+
+    await loadQueue();
+    await loadStats();
+
+}
+
+async function loadStats() {
+
+    const { data, error } =
+        await supabaseClient
+            .from("queue_stats")
+            .select("*")
+            .single();
+
+    if (error) {
+        console.error(error);
+        return;
+    }
+
+    document.getElementById("statsBox").innerHTML = `
+        Waiting: ${data.waiting}<br>
+        Called: ${data.called}<br>
+        Done: ${data.done}<br>
+        Missed: ${data.missed}<br>
+        Cancelled: ${data.cancelled}
+    `;
+}
+
+async function markMissed(id) {
+
+    const { error } = await supabaseClient.rpc(
+        "update_queue_status",
+        {
+            p_id: id,
+            p_new_status: "missed"
+        }
+    );
+
+    if (error) {
+        console.error(error);
+        return;
+    }
+
+    await loadQueue();
+    await loadStats();
+}
+
+async function callSpecific(id) {
+
+    const { data, error } = await supabaseClient.rpc(
+        "force_call_ticket",
+        {
+            p_id: id
+        }
+    );
+
+    if (error) {
+        console.error(error);
+        alert(error.message);
+        return;
+    }
+
+    if (!data.success) {
+        alert(data.message);
+        return;
+    }
+
+    await loadQueue();
+    await loadStats();
+}

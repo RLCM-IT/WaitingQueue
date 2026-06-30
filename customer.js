@@ -1,15 +1,136 @@
 const supabaseUrl = "https://bkvvyissajffmhcdduof.supabase.co";
 const supabaseKey = "sb_publishable_FVnD6MyrqCoOqsrO8yI71g_uP5zi-Bv";
+const deviceId = getDeviceId();
+
+async function  getIP(){
+    const ipRes =  await fetch("https://api.ipify.org?format=json");
+    const ipData =  await ipRes.json();
+    return ipData.ip;
+}
+
+const formSchema = [
+    {
+        key: "firstname",
+        label: "First Name",
+        type: "text",
+        required: true
+    },
+    {
+        key: "lastname",
+        label: "Last Name",
+        type: "text",
+        required: true
+    },
+    {
+        key: "email",
+        label: "Email",
+        type: "email",
+        required: true
+    }
+];
 
 const supabaseClient = supabase.createClient(
     supabaseUrl,
     supabaseKey
 );
 
-/*localStorage.setItem(
-    "queue_ticket_id",
-    queueEntryId
-);*/
+const UI_STATE = {
+    STATUS: "status",
+    GDPR: "gdpr",
+    FORM: "form",
+    TICKET: "ticket"
+};
+
+let currentUI = null;
+
+document.addEventListener("DOMContentLoaded", async () => {
+    resetUI();
+    subscribeToUpdates();
+    await initCustomer();
+    //resetUI();
+});
+
+//document.getElementById("continueBtn").addEventListener("click", showForm);
+
+function setUI(state) {
+
+    const status = document.getElementById("status");
+    const gdpr = document.getElementById("gdprBox");
+    const form = document.getElementById("formContainer");
+    const ticket = document.getElementById("ticket");
+
+    if (!status || !gdpr || !form || !ticket) {
+        console.error("Missing UI elements in HTML");
+        return;
+    }
+
+    status.style.display = state === "status" ? "block" : "none";
+    gdpr.style.display = state == "gdpr" ? "block" : "none";
+    form.style.display = state === "form" ? "block" : "none";
+    ticket.style.display = state === "ticket" ? "block" : "none";
+}
+
+function renderJoinUI(text, warning = false) {
+
+    const div = document.getElementById("status");
+
+    div.innerHTML = `
+        <h2>${warning ? "⚠️ " : ""}${text}</h2>
+
+        <label style="display:block; margin:10px 0;">
+            <input type="checkbox" id="gdpr">
+            I agree to data processing (GDPR)
+        </label>
+
+        <button id="joinBtn">Continue</button>
+    `;
+
+    document.getElementById("joinBtn").onclick = () => {
+
+        const gdpr = document.getElementById("gdpr")?.checked;
+
+        if (!gdpr) {
+            alert("You must accept GDPR");
+            return;
+        }
+
+        showForm();
+    };
+}
+
+async function showState() {
+
+    const state = await getQueueState();
+
+    const div = document.getElementById("status");
+
+    div.innerHTML = `
+        <label>
+            <input type="checkbox" id="gdpr">
+            I agree to data processing
+        </label>
+
+        <button id="continueGdpr">Continue</button>
+    `;
+
+    if (state === "full") {
+        setUI(UI_STATE.STATUS);
+
+        div.innerHTML = `<h2>Fully booked today</h2>
+            `;
+
+        return;
+    }
+
+    div.innerHTML = `
+        <h2>${state === "almostFull" ? "Almost full" : "Available"}</h2>
+        <button id="continueState">Continue</button>
+    `;
+
+    document.getElementById("continueState").onclick = () => {
+        showGDPR();
+    };
+}
 
 function getDeviceId() {
     let deviceId = localStorage.getItem("queue_device_id");
@@ -22,235 +143,81 @@ function getDeviceId() {
     return deviceId;
 }
 
-/*async function  getQueueState() {
-    const { data: settings} =
-        await supabaseClient
-            .from("queue_settings")
-            .select("*")
-            .single();
+function openTicket(ticket) {
 
-    const today = 
-        new Date().toISOString().split("T")[0];
+    showTicket(ticket);
+    setUI(UI_STATE.TICKET);
 
-    const { count } = 
-        await supabaseClient
-            .from("queue_entries")
-            .select ("*", { count: "excat", head: true })
-            .eq("queue_date", today)
-
-    if (count >= settings.max_people) {
-        return "full";
-    }
-
-    if (count >= settings.almost_full_threshold) {
-        return "almostFull";
-    }
-
-    return "hasAPlace";
 }
 
-async function  showState() {
-    
-    const state = await getQueueState();
+async function getQueueState() {
 
-    const div = document.getElementById("status");
+    const gdpr = document.getElementById("gdpr");
+    if (gdpr) gdpr.checked = false;
 
-    if (state === "full") {
-        div.innerHTML = `
-            <h2>Today's queue is full.</h2>
-        `;
+    const { data, error } = await supabaseClient.rpc("queue_state");
 
-        return;
+    if (error) {
+        console.error(error);
+        return "open";
     }
 
-    if (state === "full") {
-        div.innerHTML = `
-            <h2>Today's queue is full.</h2>
-        `;
-
-        return;
-    }
-
-    if (state === "almostFull") {
-        div.innerHTML = `
-            <h2>Queue almost full</h2>
-
-            <p>
-                There is a high likelihood
-                that no appointment slot
-                will become available today.
-            </p>
-
-            <button id="joinBtn">
-                Join Queue
-            </button>
-        `;
-
-        document.getElementById("joinBtn").addEventListener("click", joinQueue);
-
-        return;
-    }
-
-    div.innerHTML = `
-        <h2>Places available</h2>
-
-        <button id="joinBtn">
-            Join Queue
-        </button>
-    `;
-
-    document
-        .getElementById("joinBtn")
-        .addEventListener("click", joinQueue);
-}
-
-
-async function joinQueue() {
-    
-    const existing = await getExistingTicket();
-
-    if(existing) {
-
-        showTicket(existing)
-
-        return;
-    }
-
-    showForm();
-}
-
-function showForm() {
-    document.getElementById("formContainer").style.display = "block";
-
-    document.getElementById("submitForm").onclick = submitForm;
+    return data.state;
 }
 
 async function submitForm() {
-    const firstname = document.getElementById("firstname").value;
 
-    const lastname = document.getElementById("lastname").value;
+    const gdpr = document.getElementById("gdprCheckBox")?.checked;
+    const userIp = await getIP();
 
-    const email = document.getElementById("email").value;
-
-    if (!firsname || !lastname || !email) {
-        alert("Fill all fields");
+    if (!gdpr) {
+        alert("You must accept GDPR");
         return;
     }
 
-    const { data: last } = 
-        await supabaseClient
-            .from("queue_entries")
-            .select("queue_number")
-            .order("queue_number", {
-                ascending: false
-            }).limit(1);
+    const formData = collectFormData();
 
-    const nextNumber = last?.length ? last[0].queue_number + 1 : 1;
+    if (!validateForm(formData))  return;
 
-    const { data, error } =
-        await supabaseClient
-            .from("queue_entries")
-            .insert({
-                device_id: deviceId,
-                queue_number: nextNumber,
-                firstname,
-                lastname,
-                email
-            }).select().single();
+    const { data, error } = await supabaseClient.rpc("join_queue", {
+        p_device_id: deviceId,
+        p_firstname: formData.firstname,
+        p_lastname: formData.lastname,
+        p_email: formData.email,
+        p_ip: userIp
+    });
 
-    if (error) {
-        alert(error.message);
+    if (error || !data?.success) {
+        alert(error?.message || data?.message);
         return;
     }
 
-    showTicket(data);
-}
+    //const ticket = await checkExistingTicket();
+    openTicket(data);
 
-function generateTicketNumber() {
-    return Math.floor(
-        1000 + Math.random() * 9000
-    ).toString();
-}*/
+    //resetUI();
 
-async function submitForm() {
-
-    const firstname =
-        document.getElementById(
-            "firstname"
-        ).value;
-
-    const lastname =
-        document.getElementById(
-            "lastname"
-        ).value;
-
-    const email =
-        document.getElementById(
-            "email"
-        ).value;
-
-    const { data, error } =
-        await supabaseClient.rpc(
-            "join_queue",
-            {
-                p_device_id: deviceId,
-                p_firstname: firstname,
-                p_lastname: lastname,
-                p_email: email
-            }
-        );
-
-    if (error) {
-
-        alert(error.message);
-
-        return;
-    }
-
-    if (!data.success) {
-
-        alert(data.message);
-
-        return;
-    }
-
-    localStorage.setItem(
-        "queue_entry_id",
-        data.entry_id
-    );
-
-    document
-        .getElementById("status")
-        .innerHTML = `
-            <h2>Your Ticket</h2>
-            <h1>${data.ticket}</h1>
-        `;
-
-    document
-        .getElementById("formContainer")
-        .style.display = "none";
+    //await initCustomer();
 }
 
 async function checkExistingTicket() {
 
     const { data, error } =
-        await supabaseClient.rpc(
-            "get_my_ticket",
-            {
-                p_device_id: deviceId
-            }
-        );
+        await supabaseClient.rpc("get_my_ticket", {
+            p_device_id: deviceId
+        });
 
-    if (error) {
-        console.error(error);
-        return;
+    if (error || !data) return null;
+
+    const ticket = Array.isArray(data) ? data[0] : data;
+
+    if (!ticket) return null;
+
+    if (["done", "cancelled", "missed"].includes(ticket.status)) {
+        return null;
     }
 
-    if (!data.found) {
-        return;
-    }
-
-    showTicket(data);
+    return ticket;
 }
 
 function showTicket(ticket) {
@@ -262,11 +229,11 @@ function showTicket(ticket) {
     }
 
     document
-        .getElementById("status")
+        .getElementById("ticket")
         .innerHTML = `
             <h2>Your Ticket</h2>
 
-            <h1>${ticket.ticket}</h1>
+            <h1>${ticket.ticket_number}</h1>
 
             <p>
                 Status:
@@ -281,47 +248,206 @@ function showTicket(ticket) {
             </p>
         `;
 
-    document
+    /*document
         .getElementById("formContainer")
-        .style.display = "none";
+        .style.display = "none";*/
 }
 
 function subscribeToUpdates() {
 
-    supabaseClient
-        .channel("queue_updates")
-        .on(
-            "postgres_changes",
-            {
-                event: "UPDATE",
-                schema: "public",
-                table: "queue_entries",
-                filter: `device_id=eq.${deviceId}`
-            },
-            (payload) => {
+    const channel = supabaseClient.channel("queue_updates");
 
-                const updated = payload.new;
+    channel.on(
+        "postgres_changes",
+        {
+            event: "*",
+            schema: "public",
+            table: "queue_entries",
+            filter: `device_id=eq.${deviceId}`
+        },
+        (payload) => {
 
-                showTicket({
-                    id: updated.id,
-                    ticket: updated.ticket_number,
-                    status: updated.status,
-                    checked_in_at: updated.checked_in_at,
-                    called_at: updated.called_at
-                });
+            handleRealtimeUpdate(payload);
+
+            /*const updated = payload.new;
+
+            if (!updated) return;
+
+            if (["done", "cancelled", "missed"].includes(updated.status)) {
+
+                document.getElementById("status").innerHTML = `
+                    <h2>Your ticket is no longer active</h2>
+                    <p>Status: ${updated.status}</p>
+                `;
+
+                setUI(UI_STATE.STATUS);
+
+                return;
             }
-        )
-        .subscribe();
+
+            //initCustomer();
+            showTicket(updated);
+            setUI(UI_STATE.TICKET);*/
+        }
+    );
+
+    channel.subscribe();
 }
 
-const deviceId = getDeviceId();
+async function handleRealtimeUpdate(payload) {
+    const updated = payload.new;
+    if (!updated) return;
 
-subscribeToUpdates();
+    if (["done", "cancelled", "missed"].includes(updated.status)) {
+        setUI(UI_STATE.STATUS);
+
+        document.getElementById("status").innerHTML = `
+            <h2>Ticket closed</h2>
+            <p>Status: ${updated.status}</p>
+        `;
+
+        return;
+    }
+
+    // IMPORTANT: always re-fetch instead of trusting payload
+    const ticket = await checkExistingTicket();
+
+    if (ticket) {
+        openTicket(ticket);
+    }
+}
+
+async function initCustomer() {
+
+    const ticket = await checkExistingTicket();
+
+    if (ticket) {
+
+        // active ticket
+        openTicket(ticket);
+        return;
+    }
+
+    // no active ticket → always restart clean flow
+    await showQueueStatus();
+}
+
+function showForm() {
+    renderForm();
+    setUI(UI_STATE.FORM);
+}
+
+async function showQueueStatus() {
+
+    const state = await getQueueState();
+    setUI(UI_STATE.STATUS);
+
+    let text = "";
+
+    if (state === "full") {
+        text = "Fully booked today";
+    } else if (state === "almostFull") {
+        text = "Almost full — limited availability";
+    } else {
+        text = "Places available";
+    }
+
+    showState(text);
+}
+
+function resetUI() {
+
+    const status = document.getElementById("status");
+    const gdpr = document.getElementById("gdprBox");
+    const form = document.getElementById("formContainer");
+    const ticket = document.getElementById("ticket")
+
+    if (status) status.style.display = "block";
+    if (gdpr) gdpr.style.display = "none";
+    if (form) form.style.display = "none";
+    if (ticket) ticket.style.display = "none";
+}
+
+function showGDPR() {
+
+    const div = document.getElementById("gdprBox");
+
+    div.innerHTML = `
+        <label>
+            <input type="checkbox" id="gdprCheckBox">
+            I agree to data processing
+        </label>
+
+        <button id="continueGdpr">Continue</button>
+    `;
+
+    setUI(UI_STATE.GDPR);
+
+    document.getElementById("continueGdpr").onclick = () => {
+
+        const ok = document.getElementById("gdprCheckBox")?.checked;
+
+        if (!ok) {
+            alert("Please accept GDPR");
+            return;
+        }
+
+        showForm();
+    };
+}
+
+function renderForm() {
+    const container = document.getElementById("form");
+
+    container.innerHTML = "";
+
+    formSchema.forEach(field => {
+        const wrapper = document.createElement("div");
+        wrapper.style.marginBottom = "12px";
+
+        const label = document.createElement("label");
+        label.innerText = field.label;
+
+        const input = document.createElement("input");
+        input.type = field.type;
+        input.id = field.key;
+        input.dataset.key = field.key;
+
+        if (field.required) input.required = true;
+
+        wrapper.appendChild(label);
+        wrapper.appendChild(document.createElement("br"));
+        wrapper.appendChild(input);
+
+        container.appendChild(wrapper);
+    });
+}
+
+function collectFormData() {
+    const data = {};
+
+    for (const field of formSchema) {
+        const el = document.getElementById(field.key);
+
+        if (!el) continue;
+
+        data[field.key] = el.value.trim();
+    }
+
+    return data;
+}
+
+function validateForm(data) {
+    for (const field of formSchema) {
+        if (field.required && !data[field.key]) {
+            alert(`${field.label} is required`);
+            return false;
+        }
+    }
+
+    return true;
+}
 
 document.getElementById("submitBtn").addEventListener("click", submitForm);
 
 console.log("Device:", deviceId);
-
-checkExistingTicket();
-
-//showState();
