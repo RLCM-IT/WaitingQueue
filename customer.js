@@ -130,7 +130,7 @@ async function showState() {
 
         css="status-full";
 
-        div.innerHTML = `<h2 class="${css}">Fully booked for today</h2>
+        div.innerHTML = `<h2 class="${css}">Unfortunately, we are no longer able to provide consultations today. Please keep the waiting area free. You may go to other consultation centers or try again with us next week.</h2>
             `;
 
         return;
@@ -138,16 +138,19 @@ async function showState() {
     if (state === "almostFull")
     {
         css="status-almost";
+        div.innerHTML = `
+        <h2 class="${css}">We are almost fully booked today. There is a possibility that you will not receive a consultation appointment today, even if you have a ticket.</h2>
+        <button id="continueState">Continue</button>
+    `;
     }
     else 
     {
         css="status-open";
-    }
-
-    div.innerHTML = `
-        <h2 class="${css}">${state === "almostFull" ? "Almost full" : "Places Available"}</h2>
+        div.innerHTML = `
+        <h2 class="${css}">Places Available</h2>
         <button id="continueState">Continue</button>
     `;
+    }
 
     document.getElementById("continueState").onclick = () => {
         showGDPR();
@@ -401,7 +404,7 @@ function showGDPR() {
 
     div.innerHTML = `
         <div class="gdpr-card">
-            <h2>Datenschutz</h2>
+            <h2>Data privacy</h2>
             <p>
                 Please read our privacy policy before continuing.
             </p>
@@ -440,7 +443,7 @@ function showGDPR() {
 function renderForm() {
     const container = document.getElementById("form");
 
-    container.innerHTML = "Join Queue now!";
+    container.innerHTML = "A place in the queue does not guarantee entitlement to a consultation!";
 
     /*formSchema.forEach(field => {
         const wrapper = document.createElement("div");
