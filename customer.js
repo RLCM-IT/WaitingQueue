@@ -58,8 +58,9 @@ function setUI(state) {
     const gdpr = document.getElementById("gdprBox");
     const form = document.getElementById("formContainer");
     const ticket = document.getElementById("ticket");
+    const card = document.getElementById("card")
 
-    if (!status || !gdpr || !form || !ticket) {
+    if (!status || !gdpr || !form || !ticket || !card) {
         console.error("Missing UI elements in HTML");
         return;
     }
@@ -67,7 +68,14 @@ function setUI(state) {
     status.style.display = state === "status" ? "block" : "none";
     gdpr.style.display = state == "gdpr" ? "block" : "none";
     form.style.display = state === "form" ? "block" : "none";
-    ticket.style.display = state === "ticket" ? "block" : "none";
+
+    if(state === "ticket") {
+        card.style.display = "none";
+        ticket.style.display = "block";
+    } else {
+        card.style.display = "block"; 
+        ticket.style.display = "none";
+    }
 }
 
 function renderJoinUI(text, warning = false) {
@@ -104,6 +112,8 @@ async function showState() {
 
     const div = document.getElementById("status");
 
+    let css = "";
+
     div.innerHTML = `
         <label>
             <input type="checkbox" id="gdpr">
@@ -113,17 +123,29 @@ async function showState() {
         <button id="continueGdpr">Continue</button>
     `;
 
+    console.log(state);
+
     if (state === "full") {
         setUI(UI_STATE.STATUS);
 
-        div.innerHTML = `<h2>Fully booked today</h2>
+        css="status-full";
+
+        div.innerHTML = `<h2 class="${css}">Fully booked for today</h2>
             `;
 
         return;
     }
+    if (state === "almostFull")
+    {
+        css="status-almost";
+    }
+    else 
+    {
+        css="status-open";
+    }
 
     div.innerHTML = `
-        <h2>${state === "almostFull" ? "Almost full" : "Available"}</h2>
+        <h2 class="${css}">${state === "almostFull" ? "Almost full" : "Places Available"}</h2>
         <button id="continueState">Continue</button>
     `;
 
@@ -168,29 +190,29 @@ async function getQueueState() {
 async function submitForm() {
 
     const gdpr = document.getElementById("gdprCheckBox")?.checked;
-    const userIp = await getIP();
+    //const userIp = await getIP();
 
-    if (!gdpr) {
+   if (!gdpr) {
         alert("You must accept GDPR");
         return;
     }
 
-    const formData = collectFormData();
+    //const formData = collectFormData();
 
-    if (!validateForm(formData))  return;
+   // if (!validateForm(formData))  return;
 
-    const { data, error } = await supabaseClient.rpc("join_queue", {
+    const { data, error } = await supabaseClient.rpc("join_queue_simple", {
         p_device_id: deviceId,
-        p_firstname: formData.firstname,
-        p_lastname: formData.lastname,
-        p_email: formData.email,
-        p_ip: userIp
+        //p_firstname: formData.firstname,
+        //p_lastname: formData.lastname,
+        //p_email: formData.email,
+       // p_ip: userIp
     });
 
-    if (error || !data?.success) {
+    /*if (error || !data?.success) {
         alert(error?.message || data?.message);
         return;
-    }
+    }*/
 
     //const ticket = await checkExistingTicket();
     openTicket(data);
@@ -223,29 +245,34 @@ async function checkExistingTicket() {
 function showTicket(ticket) {
 
     let statusText = "Waiting";
+    let statusClass = "status-waiting";
 
     if (ticket.status === "called") {
         statusText = "YOUR NUMBER IS BEING CALLED";
+        statusClass = "status-called";
     }
 
     document
         .getElementById("ticket")
         .innerHTML = `
-            <h2>Your Ticket</h2>
+            <div class="ticket-card">
 
-            <h1>${ticket.ticket_number}</h1>
+                <h2>Your Ticket</h2>
 
-            <p>
-                Status:
-                <strong>${statusText}</strong>
-            </p>
+                <div class="ticket-number">
+                    ${ticket.ticket_number}
+                </div>
 
-            <p>
-                Checked In:
-                ${new Date(
-                    ticket.checked_in_at
-                ).toLocaleString()}
-            </p>
+                <div class="ticket-status ${statusClass}">
+                    ${statusText}
+                </div>
+
+                <div class="ticket-time">
+                    Checked in:<br>
+                    ${new Date(ticket.checked_in_at).toLocaleString()}
+                </div>
+
+            </div>
         `;
 
     /*document
@@ -373,12 +400,26 @@ function showGDPR() {
     const div = document.getElementById("gdprBox");
 
     div.innerHTML = `
-        <label>
-            <input type="checkbox" id="gdprCheckBox">
-            I agree to data processing
-        </label>
+        <div class="gdpr-card">
+            <h2>Datenschutz</h2>
+            <p>
+                Please read our privacy policy before continuing.
+            </p>
 
-        <button id="continueGdpr">Continue</button>
+            <a href="gdpr.html" target="_blank">
+                View GDPR document
+            </a>
+
+            <label class="gdpr-check">
+                <input type="checkbox" id="gdprCheckBox">
+
+                <span>
+                    I agree to data processing.
+                </span>
+            </label>
+
+            <button id="continueGdpr">Continue</button>
+        </div>
     `;
 
     setUI(UI_STATE.GDPR);
@@ -399,9 +440,9 @@ function showGDPR() {
 function renderForm() {
     const container = document.getElementById("form");
 
-    container.innerHTML = "";
+    container.innerHTML = "Join Queue now!";
 
-    formSchema.forEach(field => {
+    /*formSchema.forEach(field => {
         const wrapper = document.createElement("div");
         wrapper.style.marginBottom = "12px";
 
@@ -420,7 +461,7 @@ function renderForm() {
         wrapper.appendChild(input);
 
         container.appendChild(wrapper);
-    });
+    });*/
 }
 
 function collectFormData() {

@@ -1,32 +1,67 @@
 <!DOCTYPE html>
 <html>
     <head>
+        <meta charset="UTF-8">
+
         <title>Queue Manger</title>
-    </head>
-    <body>
-
-        <div id="loginBox">
-            <h2>Admin Login</h2>
-
-            <input id="email" placeholder="email">
-            <input id="password" type="password" placeholder="password">
-
-            <button id="loginBtn">Login</button>
-        </div>
-
-        <div id="adminPanel" style="display:none;">
-            <h1>Admin Queue Panel</h1>
-
-            <button id="callNextBtn">Call Next</button>
-            <button id="logoutBtn">Logout</button>
-
-            <div id="queueList"></div>
-        </div>
-
-        <div id="statsBox"></div>
         
-
+        <link rel="stylesheet" href="style.css">
+        
         <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-        <script src="admin.js"></script>
+    </head>
+
+    <body>
+        <div class="page"></div>
+             <header class="header">
+
+                <img id="logo" src=".\assets\image.png" alt="Logo">
+
+                <h1>Admin Center</h1>
+
+            </header>
+            
+            <main>
+                <div class="login" id="login-box">
+                    <div>
+                        <h2>Admin Login</h2>
+
+                        <input id="email" placeholder="email">
+                        <input id="password" type="password" placeholder="password">
+
+                        <button id="loginBtn">Login</button>
+                    </div>
+                </div>
+
+                <section id="adminPanel" class="adminPanel">
+                    <header class="admin-header">
+                        <h1>Admin Dashboard</h1>
+
+                        <div class="toolbar">
+                            <button id="callNextBtn">Call Next</button>
+                            <button id="logoutBtn">Logout</button>
+                        </div>
+                    </header>
+
+                    <section class="admin-stats" id="statsBox">
+                        <div class="capacity-box">
+                            <div class="capacity">
+                                <div class="capacity-bar">
+                                    <div id="capacityFill" class="capacity-fill"></div>
+                                </div>
+                                <p id="capacityText"></p>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="admin-main">
+                        <div class="queue-column">
+                            <div id="queueList"></div>
+                        </div>
+                    </section>
+                </div>
+            </main>
+        </div>
     </body>
+
+    <script src="admin.js"></script>
 </html>

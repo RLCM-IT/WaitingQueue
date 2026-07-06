@@ -102,7 +102,7 @@ function subscribeRealtime() {
 
 }
 
-const loginBox = document.getElementById("loginBox");
+const loginBox = document.getElementById("login-box");
 const adminPanel = document.getElementById("adminPanel");
 
 document.getElementById("loginBtn").addEventListener("click", login);
@@ -184,6 +184,7 @@ function renderQueue(entries) {
 
     // 1. ACTIVE (CALLED)
     const activeBox = document.createElement("div");
+    activeBox.className = "queue-section";
     activeBox.innerHTML = `<h3>Currently Called</h3>`;
 
     if (called.length === 0) {
@@ -194,14 +195,22 @@ function renderQueue(entries) {
 
         const row = document.createElement("div");
 
-        row.innerHTML = `
-            <b>🎫 ${entry.ticket_number}</b><br>
-            Status: ${entry.status}<br>
-            Waiting: ${minutesWaiting(entry.checked_in_at)} min<br>
+        row.className = "queue-row called";
 
-            <button onclick="markDone('${entry.id}')">Done</button>
-            <button onclick="markMissed('${entry.id}')">Missed</button>
-            <button onclick="cancelEntry('${entry.id}')">Cancel</button>
+        row.innerHTML = `
+            <div class="ticket-info">
+                <b>${entry.ticket_number}</b>
+            </div>
+
+            <div class="ticket-time">
+                ${minutesWaiting(entry.checked_in_at)} min
+            </div>
+
+            <div class="ticket-actions">
+                <button onclick="markDone('${entry.id}')">Done</button>
+                <button onclick="markMissed('${entry.id}')">Missed</button>
+                <button onclick="cancelEntry('${entry.id}')">Cancel</button>
+            </div>
         `;
 
         activeBox.appendChild(row);
@@ -211,19 +220,33 @@ function renderQueue(entries) {
 
     // 2. WAITING LIST
     const waitingBox = document.createElement("div");
+    waitingBox.className = "queue-section";
     waitingBox.innerHTML = `<h3>Waiting Queue</h3>`;
 
     waiting.forEach(entry => {
 
         const row = document.createElement("div");
 
-        row.innerHTML = `
-            <b>${entry.ticket_number}</b>
-            | ${minutesWaiting(entry.checked_in_at)} min
+        row.className = "queue-row waiting";
 
-            <button onclick="callSpecific('${entry.id}')">
-                Call
-            </button>
+        row.innerHTML = `
+            <div class="ticket-info">
+                <b>${entry.ticket_number}</b>
+            </div>
+
+            <div class="ticket-time">
+                ${minutesWaiting(entry.checked_in_at)} min
+            </div>
+
+            <div class="ticket-actions">
+                ${entry.status === "called" ? `
+                    <button onclick="markDone('${entry.id}')">Done</button>
+                    <button onclick="markMissed('${entry.id}')">Missed</button>
+                    <button onclick="cancelEntry('${entry.id}')">Cancel</button>
+                ` : `
+                    <button onclick="callSpecific('${entry.id}')">Call</button>
+                `}
+            </div>
         `;
 
         waitingBox.appendChild(row);
@@ -281,6 +304,7 @@ async function cancelEntry(id) {
 }
 
 async function loadStats() {
+    const maxQueue = 8;
 
     const { data, error } =
         await supabaseClient
@@ -293,13 +317,30 @@ async function loadStats() {
         return;
     }
 
-    document.getElementById("statsBox").innerHTML = `
+    const percent = (data.waiting / maxQueue) * 100;
+
+    const fill = document.getElementById("capacityFill");
+
+    fill.style.width = percent + "%";
+
+    if(percent > 80){
+        fill.style.background = "#dc2626";
+    }else if(percent > 50){
+        fill.style.background = "#f59e0b";
+    }else{
+        fill.style.background = "#16a34a";
+    }
+
+    /*document.getElementById("statsBox").innerHTML = `
         Waiting: ${data.waiting}<br>
         Called: ${data.called}<br>
         Done: ${data.done}<br>
         Missed: ${data.missed}<br>
         Cancelled: ${data.cancelled}
-    `;
+    `;*/
+
+    document.getElementById("capacityText").innerHTML = 
+     `${data.waiting} / ${maxQueue} places occupied`;
 }
 
 async function markMissed(id) {

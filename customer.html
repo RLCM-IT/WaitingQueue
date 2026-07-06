@@ -1,31 +1,49 @@
 <!DOCTYPE html>
 <html>
-<head>
-    <title>Queue Registration</title>
+    <head>
+        <meta charset="UTF-8">
 
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-</head>
-<body>
+        <title>Queue Registration</title>
 
-<h1>Queue Registration</h1>
+        <link rel="stylesheet" href="style.css">
 
-<div id="status" style="display:block"></div>
+        <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+        
+    </head>
 
-<div id="gdprBox" style="display:none">
-</div>
+    <body>
+        <div class="page">
 
-<div id="formContainer" style="display:none">
-    <div id="form">
+            <header class="header">
 
-    </div>
-    <button id="submitBtn">
-        Register
-    </button>
-</div>
+                <img id="logo" src=".\assets\image.png" alt="Logo">
 
-<div id="ticket" style="display:none"></div>
+                <h1>Queue Registration</h1>
 
-<script src="customer.js"></script>
+            </header>
 
-</body>
+            <main>
+
+                <div id="card" class="card">
+
+                    <div id="status"></div>
+
+                    <div id="gdprBox">
+                    </div>
+
+                    <div id="formContainer">
+
+                        <div id="form"></div>
+
+                        <button id="submitBtn">Register</button>
+                    </div>
+
+                    
+                </div>
+                <div id="ticket"></div>
+            </main>
+        </div>
+    </body>
+
+    <script src="customer.js"></script>
 </html>
