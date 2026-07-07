@@ -226,12 +226,22 @@ async function submitForm() {
        // p_ip: userIp
     });
 
-    /*if (error || !data?.success) {
-        alert(error?.message || data?.message);
+    if (error) {
+        showQueueError(error.message)
         return;
-    }*/
+    }
+
+    if (!data.success) {
+
+        showQueueError(
+            data.message
+        );
+
+        return;
+    }
 
     //const ticket = await checkExistingTicket();
+
     openTicket(data);
 
     //resetUI();
@@ -504,6 +514,43 @@ function validateForm(data) {
     }
 
     return true;
+}
+
+function showQueueError(message){
+
+    setUI(UI_STATE.STATUS);
+
+
+    document.getElementById("status")
+    .innerHTML = `
+
+        <div class="queue-error">
+
+            <h2>
+                No ticket created
+            </h2>
+
+            <p>
+            ${message}
+            </p>
+
+            <button id="backButton">
+            Back
+            </button>
+
+        </div>
+
+    `;
+
+
+    document
+    .getElementById("backButton")
+    .onclick = () => {
+
+        showQueueStatus();
+
+    };
+
 }
 
 document.getElementById("submitBtn").addEventListener("click", submitForm);
